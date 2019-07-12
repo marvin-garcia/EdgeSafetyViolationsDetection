@@ -1,0 +1,43 @@
+{
+    "CameraDevices": [
+        {
+            "Id": "Camera1",
+            "ImageEndpoint": "http://<camera1-ip>/axis-cgi/jpg/image.cgi",
+            "Username": "<user>",
+            "Password": "<Password>",
+            "AIModules": [
+                {
+                    "ScoringEndpoint": "http://press2objectdetection/image",
+                    "Tags": [
+                        {
+                            "Name": "tag1",
+                            "Probability": 0.5
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "Id": "Camera2",
+            "ImageEndpoint": "http://<camera2-ip>/axis-cgi/jpg/image.cgi",
+            "Username": "user",
+            "Password": "Password",
+            "AIModules": [
+                {
+                    "ScoringEndpoint": "http://assy2objectdetection/image",
+                    "Tags": [
+                        {
+                            "Name": "tag1",
+                            "Probability": 0.5
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "LocalFolder": "",
+    "OutputFolder": "/home/output",
+    "StorageAccountName": "<storage-account-name>",
+    "DBEShareContainerName": "<dbe-share-name>",
+    "TimerDelayInSeconds": 60
+}
