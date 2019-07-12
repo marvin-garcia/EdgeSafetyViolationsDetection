@@ -29,5 +29,6 @@ namespace ImageAnalyzer
         public string StorageAccountName { get; set; }
         public string DBEShareContainerName { get; set; }
         public int TimerDelayInSeconds { get; set; }
+        public Microsoft.Extensions.Logging.LogLevel LogLevel { get; set; }
     }
 }

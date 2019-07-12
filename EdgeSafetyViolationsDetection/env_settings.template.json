@@ -39,5 +39,6 @@
     "OutputFolder": "/home/output",
     "StorageAccountName": "<storage-account-name>",
     "DBEShareContainerName": "<dbe-share-name>",
-    "TimerDelayInSeconds": 60
+    "TimerDelayInSeconds": 60,
+    "LogLevel": "Debug"
 }

@@ -37,14 +37,6 @@ namespace ImageAnalyzer
         {
             try
             {
-                // Initialize logger
-                var logLevel = (LogLevel)Enum.Parse(typeof(LogLevel), Environment.GetEnvironmentVariable("LOG_LEVEL"), true);
-                var consoleLoggerConfiguration = new ConsoleLoggerConfiguration(logLevel: logLevel);
-                _loggerFactory = ConsoleLoggerExtensions.AddConsoleLogger(new LoggerFactory(), consoleLoggerConfiguration);
-                _consoleLogger = _loggerFactory.CreateLogger<ConsoleLogger>();
-
-                _consoleLogger.LogInformation("Kicking off Main method");
-                
                 // Get env settings file URL
                 string envSettingsString = _httpClient.GetStringAsync(Environment.GetEnvironmentVariable("ENV_SETTINGS_URL")).ContinueWith((r) =>
                 {
@@ -52,8 +44,16 @@ namespace ImageAnalyzer
                 }).Result;
                 _envSettings = JsonConvert.DeserializeObject<EnvSettings>(envSettingsString);
 
-                _consoleLogger.LogInformation($"Retrieved env settings successfully");
+                Console.WriteLine($"Retrieved env settings successfully");
 
+                // Initialize logger
+                Console.WriteLine($"Setting log level to {_envSettings.LogLevel}");
+                var consoleLoggerConfiguration = new ConsoleLoggerConfiguration(logLevel: _envSettings.LogLevel);
+                _loggerFactory = ConsoleLoggerExtensions.AddConsoleLogger(new LoggerFactory(), consoleLoggerConfiguration);
+                _consoleLogger = _loggerFactory.CreateLogger<ConsoleLogger>();
+
+                _consoleLogger.LogInformation("Kicking off Main method");
+                
                 // Use Timer trigger instead
                 SetTimer(_envSettings.TimerDelayInSeconds * 1000);
 
