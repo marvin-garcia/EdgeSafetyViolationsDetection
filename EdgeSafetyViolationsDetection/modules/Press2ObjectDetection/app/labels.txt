@@ -1,0 +1,3 @@
+person
+person_with_phone
+tank_on_floor
