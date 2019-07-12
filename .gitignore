@@ -328,3 +328,16 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# VS Code
+.vscode/
+
+# AI Modules
+*.DockerFile.Linux.zip
+*.[Ll]inux.zip
+model.pb
+/EdgeSafetyViolationsDetection/DockerBuildPush.ps1
+/EdgeSafetyViolationsDetection/env_settings.json
+/EdgeSafetyViolationsDetection/.env
+/EdgeSafetyViolationsDetection/deployment.debug.template.json
+/IoTHubFunction/IoTHubFunction/local.settings.real.json
