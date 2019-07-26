@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace ImageAnalyzer
+namespace Common
 {
     public class RecognitionResults
     {

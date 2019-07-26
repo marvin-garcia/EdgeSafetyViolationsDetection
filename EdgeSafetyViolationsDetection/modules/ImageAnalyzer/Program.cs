@@ -19,6 +19,7 @@ namespace ImageAnalyzer
     using Microsoft.Extensions.Configuration;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Client.Transport.Mqtt;
+    using Common;
     
     class Program
     {

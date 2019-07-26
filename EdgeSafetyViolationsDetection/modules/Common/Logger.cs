@@ -1,10 +1,10 @@
-namespace ImageAnalyzer
+using System;
+using System.Linq;
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+    
+namespace Common
 {
-    using System;
-    using System.Linq;
-    using System.Collections.Concurrent;
-    using Microsoft.Extensions.Logging;
-
     public class ConsoleLoggerConfiguration
     {
         public int EventId { get; set; } = 0;
