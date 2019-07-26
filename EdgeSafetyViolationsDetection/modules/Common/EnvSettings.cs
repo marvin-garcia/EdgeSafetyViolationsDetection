@@ -18,12 +18,12 @@ namespace Common
         {
             public string ScoringEndpoint { get; set; }
             public Tag[] Tags { get; set; }
-            public int AnalyzeTimeInterval { get; set; }
 
             public class Tag
             {
                 public string Name { get; set; }
                 public double Probability { get; set; }
+                public int AnalyzeTimeInterval { get; set; }
             }
         }
 
