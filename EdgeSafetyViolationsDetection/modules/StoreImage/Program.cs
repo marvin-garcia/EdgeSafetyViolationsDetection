@@ -166,7 +166,7 @@ namespace StoreImage
             
             try
             {
-                _consoleLogger.LogDebug($"Received kick to store images. Counter: {counterValue}");
+                _consoleLogger.LogDebug($"Received kick to store images. Counter: {_counterValue}");
 
                 Task<MessageResponse>[] tasks = new Task<MessageResponse>[_envSettings.CameraDevices.Length];
                 for (int i = 0; i < _envSettings.CameraDevices.Length; i++)
