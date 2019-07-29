@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Common
 {
     public class EnvSettings
@@ -16,6 +18,7 @@ namespace Common
 
         public class AIModule
         {
+            public string Name { get; set; }
             public string ScoringEndpoint { get; set; }
             public Tag[] Tags { get; set; }
 
@@ -35,5 +38,14 @@ namespace Common
 
         public CameraDevice[] CameraDevices { get; set; }
         public Property[] Properties { get; set; }
+
+        public string GetProperty(string name)
+        {
+            var property = this.Properties.Where(x => x.Name == name).FirstOrDefault();
+            if (property == null)
+                return null;
+            else
+                return property.Value;
+        }
     }
 }
