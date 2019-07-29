@@ -23,7 +23,8 @@ namespace ImageAnalyzer
     
     class Program
     {
-        static int counter;
+        private static int _counter;
+        private static int _counterValue;
         private static HttpClient _httpClient = new HttpClient();
         private static System.Timers.Timer EventTimer;
         private static EnvSettings _envSettings;
@@ -48,15 +49,24 @@ namespace ImageAnalyzer
                 Console.WriteLine($"Retrieved env settings successfully");
 
                 // Initialize logger
-                Console.WriteLine($"Setting log level to {_envSettings.LogLevel}");
-                var consoleLoggerConfiguration = new ConsoleLoggerConfiguration(logLevel: _envSettings.LogLevel);
+                var logLevelProperty = _envSettings.Properties.Where(x => x.Name == "LogLevel").FirstOrDefault();
+                if (logLevelProperty == null)
+                    throw new Exception("Unable to find LogLevel property in env settings");
+
+                Console.WriteLine($"Setting log level to {logLevelProperty.Value}");
+                var logLevel = (LogLevel)Enum.Parse(typeof(LogLevel), logLevelProperty.Value, true);
+                var consoleLoggerConfiguration = new ConsoleLoggerConfiguration(logLevel: logLevel);
                 _loggerFactory = ConsoleLoggerExtensions.AddConsoleLogger(new LoggerFactory(), consoleLoggerConfiguration);
                 _consoleLogger = _loggerFactory.CreateLogger<ConsoleLogger>();
 
                 _consoleLogger.LogInformation("Kicking off Main method");
                 
                 // Use Timer trigger instead
-                SetTimer(_envSettings.TimerDelayInSeconds * 1000);
+                var timerIntervalProperty = _envSettings.Properties.Where(x => x.Name == "TimerIntervalInSeconds").FirstOrDefault();
+                if (timerIntervalProperty == null)
+                    throw new Exception("Unable to find TimerIntervalInSeconds in env settings");
+                
+                SetTimer(Convert.ToInt32(timerIntervalProperty.Value) * 1000);
 
                 // Wait until the app unloads or is cancelled
                 var cts = new CancellationTokenSource();
@@ -152,11 +162,11 @@ namespace ImageAnalyzer
         /// </summary>
         static async Task AnalyzeImage()
         {
-            int counterValue = Interlocked.Increment(ref counter);
+            _counterValue = Interlocked.Increment(ref _counter);
             
             try
             {
-                _consoleLogger.LogDebug($"Received kick to analyze images. Counter: {counterValue}");
+                _consoleLogger.LogDebug($"Received kick to analyze images. Counter: {_counterValue}");
 
                 Task<MessageResponse>[] tasks = new Task<MessageResponse>[_envSettings.CameraDevices.Length];
                 for (int i = 0; i < _envSettings.CameraDevices.Length; i++)
@@ -176,110 +186,116 @@ namespace ImageAnalyzer
         {
             try
             {
-                // Get camera credentials
-                string plainCredentials = $"{camera.Username}:{camera.Password}";
-                string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(plainCredentials));
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", svcCredentials);
-                
-                _consoleLogger.LogDebug($"Camera URL: {camera.ImageEndpoint}");
+                // Get output directory details
+                string storageAccountName = _envSettings.GetProperty("StorageAccountName");
+                string  dbeShareContainerName = _envSettings.GetProperty("DBEShareContainerName");
+                string flaggedFolder = "flagged";
+                string nonFlaggedFolder = "safe";
 
-                // Make GET request to get image
-                var response = await _httpClient.GetAsync(camera.ImageEndpoint);
-                if (!response.IsSuccessStatusCode)
+                // Get details for AI module tags' folders
+                foreach (var module in camera.AIModules)
                 {
-                    _consoleLogger.LogError($"Failed to make GET request to camera {camera.Id}. Response: {response.ReasonPhrase}");
-                    return MessageResponse.Abandoned;
-                }
-                else
-                    _consoleLogger.LogDebug($"Get request to camera {camera.Id} was successful");
-
-                byte[] byteArray = await response.Content.ReadAsByteArrayAsync();
-                
-                using (ByteArrayContent content = new ByteArrayContent(byteArray))
-                {
-                    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                    
-                    // Call scoring endpoint(s)
-                    foreach (var module in camera.AIModules)
+                    foreach (var tag in module.Tags)
                     {
-                        _consoleLogger.LogDebug($"Module URL: {module.ScoringEndpoint}");
-
-                        response = await _httpClient.PostAsync(module.ScoringEndpoint, content);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            _consoleLogger.LogError($"Failed to make POST request to module {module.ScoringEndpoint}. Response: {response.ReasonPhrase}");
-                            return MessageResponse.Abandoned;
-                        }
-                        else
-                            _consoleLogger.LogDebug($"POST request to module {module.ScoringEndpoint} was successful");
-
-                        var contentString = await response.Content.ReadAsStringAsync();
-                        var recognitionResults = JsonConvert.DeserializeObject<RecognitionResults>(contentString);
-
-                        var flaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Select(t => t.Name).Contains(x.TagName));
-                        var tagsOverThreshold = flaggedTags.Where(x => x.Probability >= module.Tags.Where(y => y.Name == x.TagName).First().Probability);
+                        // Check if it is time to analyze images for current tag
+                        if (_counterValue % tag.AnalyzeTimeInterval != 0)
+                            continue;
                         
-                        string folderName;
-                        string fileName = $"{DateTime.Now.ToString("yyyyMMddTHHmmssfff")}";
-                        RecognitionResults.Prediction[] predictions = new RecognitionResults.Prediction[] { };
+                        // Analyze each image in the tag's folder
+                        string tagFolder = Path.Combine(camera.LocalFolder, module.Name, tag.Name);
+                        string[] images = Directory.GetFiles(tagFolder);
 
-                        // Save to flagged folder
-                        if (tagsOverThreshold.Count() > 0)
+                        _consoleLogger.LogDebug($"Found {images.Length} images in folder {tagFolder}");
+
+                        foreach (var fileName in images)
                         {
-                            predictions = tagsOverThreshold.ToArray();;
+                            byte[] byteArray = File.ReadAllBytes(Path.Combine(tagFolder, fileName));
 
-                            folderName = "flagged";
-                            string imageUri = $"https://{_envSettings.StorageAccountName}.blob.core.windows.net/{_envSettings.DBEShareContainerName}/{folderName}/{Path.ChangeExtension(fileName, "jpg")}";
-                            
-                            _consoleLogger.LogDebug($"Found some tags: {string.Join(", ", tagsOverThreshold.Select(x => x.TagName))}");
-
-                            // Send message to hub
-                            var message = new
+                            using (ByteArrayContent content = new ByteArrayContent(byteArray))
                             {
-                                CameraId = camera.Id,
-                                TimeStamp = DateTime.Now,
-                                ImageUri = imageUri,
-                                Violations = tagsOverThreshold
-                                    .GroupBy(x => x.TagName)
-                                    .Select(x => x.First())
-                                    .Select(x => new
-                                    { 
-                                        x.TagName,
-                                        x.Probability,
-                                    })
-                            };
+                                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                                
+                                // Call scoring endpoint(s)
+                                _consoleLogger.LogDebug($"Module URL: {module.ScoringEndpoint}");
 
-                            var properties = new Dictionary<string, string>()
-                            {
-                                { "cameraId", camera.Id },
-                                { "moduleEndpoint", module.ScoringEndpoint },
-                                { "TimeStamp", DateTime.Now.ToString("yyyyMMddTHHmmssfff") },
-                                { "ImageUri", imageUri },
-                            };
-                            
-                            await SendMessageToHub(JsonConvert.SerializeObject(message), properties);
+                                var response = await _httpClient.PostAsync(module.ScoringEndpoint, content);
+                                if (!response.IsSuccessStatusCode)
+                                {
+                                    _consoleLogger.LogError($"Failed to make POST request to module {module.ScoringEndpoint}. Response: {response.ReasonPhrase}");
+                                    continue;
+                                }
+                                else
+                                    _consoleLogger.LogDebug($"POST request to module {module.ScoringEndpoint} was successful");
+
+                                var contentString = await response.Content.ReadAsStringAsync();
+                                var recognitionResults = JsonConvert.DeserializeObject<RecognitionResults>(contentString);
+
+                                /// Need to differentiate between the current tag being flagged and 
+                                /// any other tags from this module in order to mark the image appropriately.
+                                /// Logic invites to think that in case the current tag is flagged, 
+                                /// it will also be in the all flagged tags list.
+                                var currentTagFlagged = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
+                                var allFlaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Where(y => x.TagName == y.Name && x.Probability >= y.Probability).Count() > 0);
+                                
+                                //var flaggedTags = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
+                                //var tagsOverThreshold = flaggedTags.Where(x => x.Probability >= module.Tags.Where(y => y.Name == x.TagName).First().Probability);
+                                
+                                // Send message if current tag is flagged
+                                if (currentTagFlagged.Count() > 0)
+                                {
+                                    string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{flaggedFolder}/{fileName}";
+                                    
+                                    _consoleLogger.LogDebug($"Found some tags: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
+
+                                    var message = new
+                                    {
+                                        CameraId = camera.Id,
+                                        TimeStamp = DateTime.Now,
+                                        ImageUri = imageUri,
+                                        Violations = currentTagFlagged
+                                            .GroupBy(x => x.TagName)
+                                            .Select(x => x.First())
+                                            .Select(x => new
+                                            { 
+                                                x.TagName,
+                                                x.Probability,
+                                            })
+                                    };
+
+                                    var properties = new Dictionary<string, string>()
+                                    {
+                                        { "cameraId", camera.Id },
+                                        { "moduleEndpoint", module.ScoringEndpoint },
+                                        { "TimeStamp", DateTime.Now.ToString("yyyyMMddTHHmmssfff") },
+                                        { "ImageUri", imageUri },
+                                    };
+                                    
+                                    await SendMessageToHub(JsonConvert.SerializeObject(message), properties);
+                                }
+
+                                // Save image to output directory
+                                string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
+                                
+                                // Set output directory
+                                string outputDirectory = Path.Combine(camera.OutputFolder, destinationFolder);
+                                if (!Directory.Exists(outputDirectory))
+                                    Directory.CreateDirectory(outputDirectory);
+
+                                // Save image
+                                string imageOutputPath = Path.Combine(outputDirectory, fileName);
+                                File.WriteAllBytes(imageOutputPath, byteArray);
+
+                                // Save payload
+                                string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));
+                                File.WriteAllText(fileOutputPath, JsonConvert.SerializeObject(recognitionResults.Predictions));
+                            }
+
+                            // Delete image from local folder
+                            File.Delete(Path.Combine(tagFolder, fileName));
                         }
-                        // Save to safe folder
-                        else
-                        {
-                            predictions = recognitionResults.Predictions;
 
-                            folderName = "safe";
-                            _consoleLogger.LogDebug($"No tags were found");
-                        }
-
-                        // Set output directory
-                        string outputDirectory = Path.Combine(_envSettings.OutputFolder, camera.Id, folderName);
-                        if (!Directory.Exists(outputDirectory))
-                            Directory.CreateDirectory(outputDirectory);
-
-                        // Save image
-                        string imageOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "jpg"));
-                        File.WriteAllBytes(imageOutputPath, byteArray);
-
-                        // Save payload
-                        string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));
-                        File.WriteAllText(fileOutputPath, JsonConvert.SerializeObject(predictions));
+                        /// Clean up local tag folder is not needed since
+                        /// every image is deleted in the loop above.
                     }
                 }
             }
