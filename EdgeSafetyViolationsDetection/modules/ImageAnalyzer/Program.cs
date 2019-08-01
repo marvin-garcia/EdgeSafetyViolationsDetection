@@ -68,6 +68,9 @@ namespace ImageAnalyzer
                 
                 SetTimer(Convert.ToInt32(timerIntervalProperty.Value) * 1000);
 
+                // Initialize module client
+                InitializeModuleClient().Wait();
+
                 // Wait until the app unloads or is cancelled
                 var cts = new CancellationTokenSource();
                 AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
@@ -241,9 +244,6 @@ namespace ImageAnalyzer
                 {
                     content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                     
-                    // Call scoring endpoint(s)
-                    _consoleLogger.LogDebug($"Module URL: {module.ScoringEndpoint}");
-
                     var response = await _httpClient.PostAsync(module.ScoringEndpoint, content);
                     if (!response.IsSuccessStatusCode)
                     {
@@ -270,9 +270,9 @@ namespace ImageAnalyzer
                     string fileName = Path.GetFileName(filePath);
                     if (currentTagFlagged.Count() > 0)
                     {
-                        string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{flaggedFolder}/{fileName}";
+                        string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{cameraId}/{flaggedFolder}/{fileName}";
                         
-                        _consoleLogger.LogDebug($"Found some tags: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
+                        _consoleLogger.LogDebug($"Found some tags for image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
 
                         var message = new
                         {
@@ -299,6 +299,8 @@ namespace ImageAnalyzer
                         
                         await SendMessageToHub(JsonConvert.SerializeObject(message), properties);
                     }
+                    else
+                        _consoleLogger.LogDebug($"No tags were found in image {filePath}");
 
                     // Save image to output directory
                     string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
@@ -311,6 +313,7 @@ namespace ImageAnalyzer
                     // Save image
                     string imageOutputPath = Path.Combine(outputDirectory, fileName);
                     File.WriteAllBytes(imageOutputPath, byteArray);
+                    _consoleLogger.LogDebug($"Moving image to final destination folder {imageOutputPath}");
 
                     // Save payload
                     string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));

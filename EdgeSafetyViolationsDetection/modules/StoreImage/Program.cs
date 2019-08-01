@@ -68,6 +68,9 @@ namespace StoreImage
                 
                 SetTimer(Convert.ToInt32(timerIntervalProperty.Value) * 1000);
 
+                // Initialize module client
+                InitializeModuleClient().Wait();
+
                 // Wait until the app unloads or is cancelled
                 var cts = new CancellationTokenSource();
                 AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
