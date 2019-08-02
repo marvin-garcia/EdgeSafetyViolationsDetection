@@ -274,7 +274,8 @@ namespace ImageAnalyzer
                         
                         _consoleLogger.LogDebug($"Found some tags for image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
 
-                        var message = new
+                        // Create message content
+                        var messageContent = new
                         {
                             CameraId = cameraId,
                             TimeStamp = DateTime.Now,
@@ -289,15 +290,17 @@ namespace ImageAnalyzer
                                 })
                         };
 
-                        var properties = new Dictionary<string, string>()
-                        {
-                            { "cameraId", cameraId },
-                            { "moduleEndpoint", module.ScoringEndpoint },
-                            { "TimeStamp", DateTime.Now.ToString("yyyyMMddTHHmmssfff") },
-                            { "ImageUri", imageUri },
-                        };
+                        // Create hub message and set its properties
+                        Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageContent)));
+                        message.Properties.Add("cameraId", cameraId);
+                        message.Properties.Add("moduleEndpoint", module.ScoringEndpoint);
+                        message.Properties.Add("TimeStamp", DateTime.Now.ToString("yyyyMMddTHHmmssfff"));
+                        message.Properties.Add("ImageUri", imageUri);
+                        message.ContentType = "application/json";
+                        message.ContentEncoding = "utf-8";
                         
-                        await SendMessageToHub(JsonConvert.SerializeObject(message), properties);
+                        // Send message
+                        await SendMessageToHub(message);
                     }
                     else
                         _consoleLogger.LogDebug($"No tags were found in image {filePath}");
@@ -329,7 +332,7 @@ namespace ImageAnalyzer
             }
         }
 
-        static async Task SendMessageToHub(string messageString, Dictionary<string, string> properties)
+        static async Task SendMessageToHub(Message message)
         {
             try
             {
@@ -338,15 +341,8 @@ namespace ImageAnalyzer
                     _consoleLogger.LogCritical($"SendMessageToHub: ModuleClient doesn't exist");
                     return;
                 }
-                
-                var pipeMessage = new Message(Encoding.UTF8.GetBytes(messageString));
-                foreach (var prop in properties)
-                    pipeMessage.Properties.Add(prop.Key, prop.Value);
 
-                pipeMessage.ContentType = "application/json";
-                pipeMessage.ContentEncoding = "utf-8";
-                
-                await _ioTHubModuleClient.SendEventAsync("output1", pipeMessage);
+                await _ioTHubModuleClient.SendEventAsync("output1", message);
 
                 _consoleLogger.LogTrace("Hub message was sent successfully");
 
