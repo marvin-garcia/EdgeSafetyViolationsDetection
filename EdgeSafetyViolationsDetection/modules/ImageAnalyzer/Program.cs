@@ -342,6 +342,9 @@ namespace ImageAnalyzer
                 var pipeMessage = new Message(Encoding.UTF8.GetBytes(messageString));
                 foreach (var prop in properties)
                     pipeMessage.Properties.Add(prop.Key, prop.Value);
+
+                pipeMessage.ContentType = "application/json";
+                pipeMessage.ContentEncoding = "utf-8";
                 
                 await _ioTHubModuleClient.SendEventAsync("output1", pipeMessage);
 
