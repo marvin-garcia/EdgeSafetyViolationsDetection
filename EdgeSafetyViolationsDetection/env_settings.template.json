@@ -1,44 +1,49 @@
 {
     "CameraDevices": [
         {
-            "Id": "Camera1",
-            "ImageEndpoint": "http://<camera1-ip>/axis-cgi/jpg/image.cgi",
+            "Id": "camera1",
+            "ImageEndpoint": "http://<camera-ip>",
             "Username": "<user>",
-            "Password": "<Password>",
+            "Password": "<password>",
+            "LocalFolder": "/home/local/camera1",
+            "OutputFolder": "/home/output/camera1",
+            "CaptureTimeInterval": 5,
             "AIModules": [
                 {
-                    "ScoringEndpoint": "http://press2objectdetection/image",
+                    "Name": "camera1",
+                    "ScoringEndpoint": "http://camera1objectdetection/image",
                     "Tags": [
                         {
                             "Name": "tag1",
-                            "Probability": 0.5
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "Id": "Camera2",
-            "ImageEndpoint": "http://<camera2-ip>/axis-cgi/jpg/image.cgi",
-            "Username": "user",
-            "Password": "Password",
-            "AIModules": [
-                {
-                    "ScoringEndpoint": "http://assy2objectdetection/image",
-                    "Tags": [
+                            "Probability": 0.5,
+                            "AnalyzeTimeInterval": 60
+                        },
                         {
-                            "Name": "tag1",
-                            "Probability": 0.5
+                            "Name": "tag2",
+                            "Probability": 0.5,
+                            "AnalyzeTimeInterval": 5
                         }
                     ]
                 }
             ]
         }
     ],
-    "LocalFolder": "",
-    "OutputFolder": "/home/output",
-    "StorageAccountName": "<storage-account-name>",
-    "DBEShareContainerName": "<dbe-share-name>",
-    "TimerDelayInSeconds": 60,
-    "LogLevel": "Debug"
+    "Properties": [
+        {
+            "Name": "StorageAccountName",
+            "Value": "<storage-acct-name>"
+        },
+        {
+            "Name": "DBEShareContainerName",
+            "Value": "<share-container-name>"
+        },
+        {
+            "Name": "TimerIntervalInSeconds",
+            "Value": 60
+        },
+        {
+            "Name": "LogLevel",
+            "Value": "Debug"
+        }
+    ]
 }
