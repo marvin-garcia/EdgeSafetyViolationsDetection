@@ -10,6 +10,7 @@ namespace ImageAnalyzer
     using System.Net.Http.Headers;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Text.RegularExpressions;
     using System.Collections.Generic;
     using System.Runtime.Loader;
     using System.Runtime.InteropServices;
@@ -189,6 +190,8 @@ namespace ImageAnalyzer
         {
             try
             {
+                List<AnalysisResult> analysisResults = new List<AnalysisResult>() { };
+
                 // Get details for AI module tags' folders
                 foreach (var module in camera.AIModules)
                 {
@@ -205,7 +208,7 @@ namespace ImageAnalyzer
                         _consoleLogger.LogDebug($"Found {images.Length} images in folder {tagFolder}");
 
                         // Analyze image files asyncrhonously
-                        Task[] tasks = new Task[images.Length];
+                        Task<AnalysisResult>[] tasks = new Task<AnalysisResult>[images.Length];
                         for (int i = 0; i < images.Length; i++)
                         {
                             string filePath = Path.Combine(tagFolder, images[i]);
@@ -213,12 +216,26 @@ namespace ImageAnalyzer
                         }
 
                         // Wait for tasks to complete
-                        await Task.WhenAll(tasks);
+                         var taskResults = await Task.WhenAll(tasks);
+                         
+                         // Add to bigger list
+                         analysisResults.AddRange(taskResults.Where(x => x != null));
 
                         /// Clean up local tag folder is not needed since
                         /// every image is deleted during the inner method.
                     }
                 }
+
+                // Send message to hub
+                _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResults.Count}");
+                // Create hub message and set its properties
+                Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResults)));
+                message.Properties.Add("cameraId", camera.Id);
+                message.ContentType = "application/json";
+                message.ContentEncoding = "utf-8";
+                
+                // Send message
+                await SendMessageToHub(message);
             }
             catch (Exception e)
             {
@@ -228,10 +245,12 @@ namespace ImageAnalyzer
             return MessageResponse.Completed;
         }
 
-        static async Task AnalyzeImage(string filePath, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
+        static async Task<AnalysisResult> AnalyzeImage(string filePath, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
         {
             try
             {
+                AnalysisResult analyzeResult = null;
+
                 // Get output directory details
                 string storageAccountName = _envSettings.GetProperty("StorageAccountName");
                 string  dbeShareContainerName = _envSettings.GetProperty("DBEShareContainerName");
@@ -248,7 +267,7 @@ namespace ImageAnalyzer
                     if (!response.IsSuccessStatusCode)
                     {
                         _consoleLogger.LogError($"Failed to make POST request to module {module.ScoringEndpoint}. Response: {response.ReasonPhrase}");
-                        return;
+                        return null;
                     }
                     else
                         _consoleLogger.LogDebug($"POST request to module {module.ScoringEndpoint} was successful");
@@ -263,10 +282,7 @@ namespace ImageAnalyzer
                     var currentTagFlagged = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
                     var allFlaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Where(y => x.TagName == y.Name && x.Probability >= y.Probability).Count() > 0);
                     
-                    //var flaggedTags = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
-                    //var tagsOverThreshold = flaggedTags.Where(x => x.Probability >= module.Tags.Where(y => y.Name == x.TagName).First().Probability);
-                    
-                    // Send message if current tag is flagged
+                    // Create analyze result object
                     string fileName = Path.GetFileName(filePath);
                     if (currentTagFlagged.Count() > 0)
                     {
@@ -275,32 +291,24 @@ namespace ImageAnalyzer
                         _consoleLogger.LogDebug($"Found some tags for image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
 
                         // Create message content
-                        var messageContent = new
+                        string datePattern = @"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})$";
+                        var match = Regex.Match(Path.GetFileNameWithoutExtension(fileName), datePattern);
+                        DateTime timestamp = new DateTime(
+                            Convert.ToInt32(match.Groups[1].Value),
+                            Convert.ToInt32(match.Groups[2].Value),
+                            Convert.ToInt32(match.Groups[3].Value),
+                            Convert.ToInt32(match.Groups[4].Value),
+                            Convert.ToInt32(match.Groups[5].Value),
+                            Convert.ToInt32(match.Groups[6].Value),
+                            Convert.ToInt32(match.Groups[7].Value));
+                        
+                        analyzeResult = new AnalysisResult()
                         {
                             CameraId = cameraId,
-                            TimeStamp = DateTime.Now,
                             ImageUri = imageUri,
-                            Violations = currentTagFlagged
-                                .GroupBy(x => x.TagName)
-                                .Select(x => x.First())
-                                .Select(x => new
-                                { 
-                                    x.TagName,
-                                    x.Probability,
-                                })
+                            Timestamp = timestamp,
+                            Results = AnalysisResult.Result.Results(currentTagFlagged),
                         };
-
-                        // Create hub message and set its properties
-                        Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageContent)));
-                        message.Properties.Add("cameraId", cameraId);
-                        message.Properties.Add("moduleEndpoint", module.ScoringEndpoint);
-                        message.Properties.Add("TimeStamp", DateTime.Now.ToString("yyyyMMddTHHmmssfff"));
-                        message.Properties.Add("ImageUri", imageUri);
-                        message.ContentType = "application/json";
-                        message.ContentEncoding = "utf-8";
-                        
-                        // Send message
-                        await SendMessageToHub(message);
                     }
                     else
                         _consoleLogger.LogDebug($"No tags were found in image {filePath}");
@@ -325,10 +333,13 @@ namespace ImageAnalyzer
                     // Delete image from local folder
                     File.Delete(filePath);
                 }
+
+                return analyzeResult;
             }
             catch (Exception e)
             {
                 _consoleLogger.LogCritical("AnalyzeImage caught an exception: {0}", e);
+                return null;
             }
         }
 
