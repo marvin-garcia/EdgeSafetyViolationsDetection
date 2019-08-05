@@ -4,9 +4,8 @@ using System.Collections.Generic;
 
 namespace Common
 {
-    public class AnalysisResult
+    public class ImageAnalysisResult
     {
-        public string CameraId { get; set; }
         public string ImageUri { get; set; }
         public DateTime Timestamp { get; set; }
         public Result[] Results { get; set; }
@@ -31,13 +30,9 @@ namespace Common
         }
     }
 
-    public class AnalysisResultHubMessage
+    public class CameraAnalysisResult
     {
-
-    }
-
-    public class AnalysisResultMetrics
-    {
-        
+        public string CameraId { get; set; }
+        public ImageAnalysisResult[] ImageAnalysisResults { get; set; }
     }
 }
