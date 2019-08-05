@@ -190,7 +190,7 @@ namespace ImageAnalyzer
         {
             try
             {
-                List<AnalysisResult> analysisResults = new List<AnalysisResult>() { };
+                List<ImageAnalysisResult> imageAnalysisResults = new List<ImageAnalysisResult>() { };
 
                 // Get details for AI module tags' folders
                 foreach (var module in camera.AIModules)
@@ -208,7 +208,7 @@ namespace ImageAnalyzer
                         _consoleLogger.LogDebug($"Found {images.Length} images in folder {tagFolder}");
 
                         // Analyze image files asyncrhonously
-                        Task<AnalysisResult>[] tasks = new Task<AnalysisResult>[images.Length];
+                        Task<ImageAnalysisResult>[] tasks = new Task<ImageAnalysisResult>[images.Length];
                         for (int i = 0; i < images.Length; i++)
                         {
                             string filePath = Path.Combine(tagFolder, images[i]);
@@ -219,18 +219,25 @@ namespace ImageAnalyzer
                          var taskResults = await Task.WhenAll(tasks);
                          
                          // Add to bigger list
-                         analysisResults.AddRange(taskResults.Where(x => x != null));
+                         imageAnalysisResults.AddRange(taskResults.Where(x => x != null));
 
                         /// Clean up local tag folder is not needed since
                         /// every image is deleted during the inner method.
                     }
                 }
 
+                // Create camera results object
+                CameraAnalysisResult analysisResult = new CameraAnalysisResult()
+                {
+                    CameraId = camera.Id,
+                    ImageAnalysisResults = imageAnalysisResults.ToArray(),
+                };
+
                 // Send message to hub
-                _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResults.Count}");
+                _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResult.ImageAnalysisResults.Length}");
+                
                 // Create hub message and set its properties
-                Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResults)));
-                message.Properties.Add("cameraId", camera.Id);
+                Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResult)));
                 message.ContentType = "application/json";
                 message.ContentEncoding = "utf-8";
                 
@@ -245,11 +252,11 @@ namespace ImageAnalyzer
             return MessageResponse.Completed;
         }
 
-        static async Task<AnalysisResult> AnalyzeImage(string filePath, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
+        static async Task<ImageAnalysisResult> AnalyzeImage(string filePath, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
         {
             try
             {
-                AnalysisResult analyzeResult = null;
+                ImageAnalysisResult analyzeResult = null;
 
                 // Get output directory details
                 string storageAccountName = _envSettings.GetProperty("StorageAccountName");
@@ -302,12 +309,11 @@ namespace ImageAnalyzer
                             Convert.ToInt32(match.Groups[6].Value),
                             Convert.ToInt32(match.Groups[7].Value));
                         
-                        analyzeResult = new AnalysisResult()
+                        analyzeResult = new ImageAnalysisResult()
                         {
-                            CameraId = cameraId,
                             ImageUri = imageUri,
                             Timestamp = timestamp,
-                            Results = AnalysisResult.Result.Results(currentTagFlagged),
+                            Results = ImageAnalysisResult.Result.Results(currentTagFlagged),
                         };
                     }
                     else
