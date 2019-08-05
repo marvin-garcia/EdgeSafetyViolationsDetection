@@ -226,23 +226,25 @@ namespace ImageAnalyzer
                     }
                 }
 
-                // Create camera results object
-                CameraAnalysisResult analysisResult = new CameraAnalysisResult()
+                // Send message to hub only if there are any results to report
+                if (imageAnalysisResults.Count() > 0)
                 {
-                    CameraId = camera.Id,
-                    ImageAnalysisResults = imageAnalysisResults.ToArray(),
-                };
+                    // Create camera results object
+                    CameraAnalysisResult analysisResult = new CameraAnalysisResult()
+                    {
+                        CameraId = camera.Id,
+                        ImageAnalysisResults = imageAnalysisResults.ToArray(),
+                    };
 
-                // Send message to hub
-                _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResult.ImageAnalysisResults.Length}");
-                
-                // Create hub message and set its properties
-                Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResult)));
-                message.ContentType = "application/json";
-                message.ContentEncoding = "utf-8";
-                
-                // Send message
-                await SendMessageToHub(message);
+                    // Send message to hub
+                    _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResult.ImageAnalysisResults.Length}");
+                    
+                    // Create hub message and set its properties
+                    Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResult)));
+                    
+                    // Send message
+                    await SendMessageToHub(message);
+                }
             }
             catch (Exception e)
             {
