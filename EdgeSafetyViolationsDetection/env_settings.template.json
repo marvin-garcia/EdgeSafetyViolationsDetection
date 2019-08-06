@@ -25,7 +25,8 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "TimeZoneId": "America/New_York"
         }
     ],
     "Properties": [

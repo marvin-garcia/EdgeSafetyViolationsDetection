@@ -215,7 +215,11 @@ namespace StoreImage
                 byte[] byteArray = await response.Content.ReadAsByteArrayAsync();
                 
                 // Save the image in respective local folder for each AI module's tag
-                string imageName = $"{DateTime.Now.ToString("yyyyMMddTHHmmssfff")}";
+                DateTime utcDate = DateTime.UtcNow;
+                TimeZoneInfo localZone = TimeZoneInfo.FindSystemTimeZoneById(camera.TimeZoneId);
+                DateTime localDate = TimeZoneInfo.ConvertTimeFromUtc(utcDate, localZone);
+
+                string imageName = $"{localDate.ToString("yyyyMMddTHHmmssfff")}";
                 foreach (var module in camera.AIModules)
                     foreach (var tag in module.Tags)
                     {

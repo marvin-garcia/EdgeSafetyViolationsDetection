@@ -14,6 +14,7 @@ namespace Common
             public string OutputFolder { get; set; }
             public int CaptureTimeInterval { get; set; }
             public AIModule[] AIModules { get; set; }
+            public string TimeZoneId { get; set; }
         }
 
         public class AIModule
