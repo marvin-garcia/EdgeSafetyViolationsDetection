@@ -341,3 +341,4 @@ model.pb
 /EdgeSafetyViolationsDetection/.env
 /EdgeSafetyViolationsDetection/deployment.debug.template.json
 /IoTHubFunction/IoTHubFunction/local.settings.real.json
+payload-sample.json

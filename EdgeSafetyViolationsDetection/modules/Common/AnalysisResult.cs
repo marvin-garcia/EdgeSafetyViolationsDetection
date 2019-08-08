@@ -32,12 +32,14 @@ namespace Common
 
     public class CameraAnalysisResult
     {
+        public string FactoryId { get; set; }
         public string CameraId { get; set; }
         public ImageAnalysisResult[] ImageAnalysisResults { get; set; }
     }
 
     public class FlatImageAnalysisResult
     {
+        public string FactoryId { get; set; }
         public string CameraId { get; set; }
         public string ImageUri { get; set; }
         public DateTime Timestamp { get; set; }
@@ -52,6 +54,7 @@ namespace Common
                 foreach (var result in image.Results)
                     flatImageAnalysisResults.Add(new FlatImageAnalysisResult()
                     {
+                        FactoryId = cameraAnalysisResult.FactoryId,
                         CameraId = cameraAnalysisResult.CameraId,
                         ImageUri = image.ImageUri,
                         Timestamp = image.Timestamp,

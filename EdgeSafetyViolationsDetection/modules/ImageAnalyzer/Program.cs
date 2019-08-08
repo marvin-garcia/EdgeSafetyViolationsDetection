@@ -212,7 +212,7 @@ namespace ImageAnalyzer
                         for (int i = 0; i < images.Length; i++)
                         {
                             string filePath = Path.Combine(tagFolder, images[i]);
-                            tasks[i] = AnalyzeImage(filePath, camera.Id, module, tag, camera.OutputFolder);
+                            tasks[i] = AnalyzeImage(filePath, camera.FactoryId, camera.Id, module, tag, camera.OutputFolder);
                         }
 
                         // Wait for tasks to complete
@@ -267,7 +267,7 @@ namespace ImageAnalyzer
             return MessageResponse.Completed;
         }
 
-        static async Task<ImageAnalysisResult> AnalyzeImage(string filePath, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
+        static async Task<ImageAnalysisResult> AnalyzeImage(string filePath, string factoryId, string cameraId, EnvSettings.AIModule module, EnvSettings.AIModule.Tag tag, string outputFolder)
         {
             try
             {
@@ -308,7 +308,7 @@ namespace ImageAnalyzer
                     string fileName = Path.GetFileName(filePath);
                     if (currentTagFlagged.Count() > 0)
                     {
-                        string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{cameraId}/{flaggedFolder}/{fileName}";
+                        string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{factoryId}/{cameraId}/{flaggedFolder}/{fileName}";
                         
                         _consoleLogger.LogDebug($"Found some tags for image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
 

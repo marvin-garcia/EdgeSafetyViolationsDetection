@@ -2,6 +2,7 @@
     "CameraDevices": [
         {
             "Id": "camera1",
+            "FactoryId": "factory1",
             "ImageEndpoint": "http://<camera-ip>",
             "Username": "<user>",
             "Password": "<password>",
