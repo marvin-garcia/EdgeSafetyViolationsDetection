@@ -230,20 +230,33 @@ namespace ImageAnalyzer
                 if (imageAnalysisResults.Count() > 0)
                 {
                     // Create camera results object
-                    CameraAnalysisResult analysisResult = new CameraAnalysisResult()
+                    CameraAnalysisResult cameraResults = new CameraAnalysisResult()
                     {
                         CameraId = camera.Id,
                         ImageAnalysisResults = imageAnalysisResults.ToArray(),
                     };
 
-                    // Send message to hub
-                    _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {analysisResult.ImageAnalysisResults.Length}");
+                    // Send message to hub for notification purposes
+                    _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {cameraResults.ImageAnalysisResults.Length}");
                     
                     // Create hub message and set its properties
-                    Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(analysisResult)));
-                    
+                    Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(cameraResults)));
+                    message.Properties.Add("messageType", "notification");
+
                     // Send message
                     await SendMessageToHub(message);
+
+                    // Get flat results for reporting purposes
+                    FlatImageAnalysisResult[] flatImageResults = FlatImageAnalysisResult.Convert(cameraResults);
+                    foreach (var flatResult in flatImageResults)
+                    {
+                        // Create hub message and set its properties
+                        message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(flatResult)));
+                        message.Properties.Add("messageType", "reporting");
+
+                        // Send message
+                        await SendMessageToHub(message);
+                    }
                 }
             }
             catch (Exception e)

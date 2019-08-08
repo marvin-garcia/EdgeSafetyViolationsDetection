@@ -35,4 +35,31 @@ namespace Common
         public string CameraId { get; set; }
         public ImageAnalysisResult[] ImageAnalysisResults { get; set; }
     }
+
+    public class FlatImageAnalysisResult
+    {
+        public string CameraId { get; set; }
+        public string ImageUri { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string TagName { get; set; }
+        public double Probability { get; set; }
+
+        public static FlatImageAnalysisResult[] Convert(CameraAnalysisResult cameraAnalysisResult)
+        {
+            List<FlatImageAnalysisResult> flatImageAnalysisResults = new List<FlatImageAnalysisResult>() { };
+
+            foreach (var image in cameraAnalysisResult.ImageAnalysisResults)
+                foreach (var result in image.Results)
+                    flatImageAnalysisResults.Add(new FlatImageAnalysisResult()
+                    {
+                        CameraId = cameraAnalysisResult.CameraId,
+                        ImageUri = image.ImageUri,
+                        Timestamp = image.Timestamp,
+                        TagName = result.TagName,
+                        Probability = result.Probability,
+                    });
+            
+            return flatImageAnalysisResults.ToArray();
+        }
+    }
 }
