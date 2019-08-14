@@ -1,51 +1,51 @@
 {
-    "CameraDevices": [
+    "cameraDevices": [
         {
-            "Id": "camera1",
-            "FactoryId": "factory1",
-            "ImageEndpoint": "http://<camera-ip>",
-            "Username": "<user>",
-            "Password": "<password>",
-            "LocalFolder": "/home/local/camera1",
-            "OutputFolder": "/home/output/camera1",
-            "CaptureTimeInterval": 5,
-            "AIModules": [
+            "id": "camera1",
+            "factoryId": "factory1",
+            "imageEndpoint": "http://<camera-ip>",
+            "username": "<user>",
+            "password": "<password>",
+            "localFolder": "/home/local/camera1",
+            "outputFolder": "/home/output",
+            "captureTimeInterval": 5,
+            "aiModules": [
                 {
-                    "Name": "camera1",
-                    "ScoringEndpoint": "http://camera1objectdetection/image",
-                    "Tags": [
+                    "name": "camera1",
+                    "scoringEndpoint": "http://camera1objectdetection/image",
+                    "tags": [
                         {
-                            "Name": "tag1",
-                            "Probability": 0.5,
-                            "AnalyzeTimeInterval": 60
+                            "name": "tag1",
+                            "probability": 0.5,
+                            "analyzeTimeInterval": 60
                         },
                         {
-                            "Name": "tag2",
-                            "Probability": 0.5,
-                            "AnalyzeTimeInterval": 5
+                            "name": "tag2",
+                            "probability": 0.5,
+                            "analyzeTimeInterval": 5
                         }
                     ]
                 }
             ],
-            "TimeZoneId": "America/New_York"
+            "timeZoneId": "America/New_York"
         }
     ],
-    "Properties": [
+    "properties": [
         {
-            "Name": "StorageAccountName",
-            "Value": "<storage-acct-name>"
+            "name": "StorageAccountName",
+            "value": "<storage-acct-name>"
         },
         {
-            "Name": "DBEShareContainerName",
-            "Value": "<share-container-name>"
+            "name": "DBEShareContainerName",
+            "value": "<share-container-name>"
         },
         {
-            "Name": "TimerIntervalInSeconds",
-            "Value": 60
+            "name": "TimerIntervalInSeconds",
+            "value": 60
         },
         {
-            "Name": "LogLevel",
-            "Value": "Debug"
+            "name": "LogLevel",
+            "value": "Debug"
         }
     ]
 }
