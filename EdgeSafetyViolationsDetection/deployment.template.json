@@ -96,6 +96,16 @@
               "image": "${MODULES.StoreImage}",
               "createOptions": {}
             }
+          },
+          "Assy2PersonNoGlasses": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.Assy2PersonNoGlasses}",
+              "createOptions": {}
+            }
           }
         }
       }
@@ -107,7 +117,8 @@
           "ImageAnalyzerToIoTHub": "FROM /messages/modules/ImageAnalyzer/outputs/* INTO $upstream",
           "Press2ObjectDetectionToIoTHub": "FROM /messages/modules/Press2ObjectDetection/outputs/* INTO $upstream",
           "Assy2ObjectDetectionToIoTHub": "FROM /messages/modules/Assy2ObjectDetection/outputs/* INTO $upstream",
-          "StoreImageToIoTHub": "FROM /messages/modules/StoreImage/outputs/* INTO $upstream"
+          "StoreImageToIoTHub": "FROM /messages/modules/StoreImage/outputs/* INTO $upstream",
+          "Assy2PersonNoGlassesToIoTHub": "FROM /messages/modules/Assy2PersonNoGlasses/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
           "timeToLiveSecs": 7200
