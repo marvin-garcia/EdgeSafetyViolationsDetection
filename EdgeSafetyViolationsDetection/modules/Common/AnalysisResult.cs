@@ -64,5 +64,23 @@ namespace Common
             
             return flatImageAnalysisResults.ToArray();
         }
+
+        public static FlatImageAnalysisResult[] Convert(string factoryId, string cameraId, ImageAnalysisResult imageAnalysisResult)
+        {
+            List<FlatImageAnalysisResult> flatImageAnalysisResults = new List<FlatImageAnalysisResult>() { };
+
+            foreach (var result in imageAnalysisResult.Results)
+                flatImageAnalysisResults.Add(new FlatImageAnalysisResult()
+                {
+                    FactoryId = factoryId,
+                    CameraId = cameraId,
+                    ImageUri = imageAnalysisResult.ImageUri,
+                    Timestamp = imageAnalysisResult.Timestamp,
+                    TagName = result.TagName,
+                    Probability = result.Probability,
+                });
+            
+            return flatImageAnalysisResults.ToArray();
+        }
     }
 }

@@ -202,7 +202,7 @@ namespace ImageAnalyzer
                             continue;
                         
                         // Analyze each image in the tag's folder
-                        string tagFolder = Path.Combine(camera.LocalFolder, module.Name, tag.Name);
+                        string tagFolder = Path.Combine(camera.LocalFolder, camera.FactoryId, module.Name, tag.Name);
                         string[] images = Directory.GetFiles(tagFolder);
 
                         _consoleLogger.LogDebug($"Found {images.Length} images in folder {tagFolder}");
@@ -243,20 +243,11 @@ namespace ImageAnalyzer
                     Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(cameraResults)));
                     message.Properties.Add("messageType", "notification");
 
-                    // Send message
+                    // Send notification message
                     await SendMessageToHub(message);
 
-                    // Get flat results for reporting purposes
-                    FlatImageAnalysisResult[] flatImageResults = FlatImageAnalysisResult.Convert(cameraResults);
-                    foreach (var flatResult in flatImageResults)
-                    {
-                        // Create hub message and set its properties
-                        message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(flatResult)));
-                        message.Properties.Add("messageType", "reporting");
-
-                        // Send message
-                        await SendMessageToHub(message);
-                    }
+                    // Log it
+                    _consoleLogger.LogDebug($"Sent notification message for camera {camera.Id}");
                 }
             }
             catch (Exception e)
@@ -278,7 +269,7 @@ namespace ImageAnalyzer
                 string  dbeShareContainerName = _envSettings.GetProperty("DBEShareContainerName");
                 string flaggedFolder = "flagged";
                 string nonFlaggedFolder = "safe";
-
+                    
                 // Read image
                 byte[] byteArray = File.ReadAllBytes(filePath);
                 using (ByteArrayContent content = new ByteArrayContent(byteArray))
@@ -310,7 +301,7 @@ namespace ImageAnalyzer
                     {
                         string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{factoryId}/{cameraId}/{flaggedFolder}/{fileName}";
                         
-                        _consoleLogger.LogDebug($"Found some tags for image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
+                        _consoleLogger.LogDebug($"---> Found tags in image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
 
                         // Create message content
                         string datePattern = @"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})$";
@@ -330,6 +321,21 @@ namespace ImageAnalyzer
                             Timestamp = timestamp,
                             Results = ImageAnalysisResult.Result.Results(currentTagFlagged),
                         };
+
+                        // Get flat results for reporting purposes
+                        FlatImageAnalysisResult[] flatImageResults = FlatImageAnalysisResult.Convert(factoryId, cameraId, analyzeResult);
+                        foreach (var flatResult in flatImageResults)
+                        {
+                            // Create hub message and set its properties
+                            var message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(flatResult)));
+                            message.Properties.Add("messageType", "reporting");
+
+                            // Send reporting message
+                            await SendMessageToHub(message);
+
+                            // Log it
+                            _consoleLogger.LogDebug($"Sent reporting message for camera {cameraId}");
+                        }
                     }
                     else
                         _consoleLogger.LogDebug($"No tags were found in image {filePath}");
@@ -338,7 +344,7 @@ namespace ImageAnalyzer
                     string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
                     
                     // Set output directory
-                    string outputDirectory = Path.Combine(outputFolder, destinationFolder);
+                    string outputDirectory = Path.Combine(outputFolder, factoryId, destinationFolder);
                     if (!Directory.Exists(outputDirectory))
                         Directory.CreateDirectory(outputDirectory);
 

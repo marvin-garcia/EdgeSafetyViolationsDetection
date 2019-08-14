@@ -223,7 +223,7 @@ namespace StoreImage
                 foreach (var module in camera.AIModules)
                     foreach (var tag in module.Tags)
                     {
-                        string tagFolder = Path.Combine(camera.LocalFolder, module.Name, tag.Name);
+                        string tagFolder = Path.Combine(camera.LocalFolder, camera.FactoryId, module.Name, tag.Name);
                         if (!Directory.Exists(tagFolder))
                             Directory.CreateDirectory(tagFolder);
                         
