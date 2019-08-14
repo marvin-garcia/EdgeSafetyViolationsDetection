@@ -344,7 +344,7 @@ namespace ImageAnalyzer
                     string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
                     
                     // Set output directory
-                    string outputDirectory = Path.Combine(outputFolder, factoryId, destinationFolder);
+                    string outputDirectory = Path.Combine(outputFolder, factoryId, cameraId, destinationFolder);
                     if (!Directory.Exists(outputDirectory))
                         Directory.CreateDirectory(outputDirectory);
 
