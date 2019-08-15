@@ -230,14 +230,10 @@ namespace ImageAnalyzer
                 if (imageAnalysisResults.Count() > 0)
                 {
                     // Create camera results object
-                    CameraAnalysisResult cameraResults = new CameraAnalysisResult()
-                    {
-                        CameraId = camera.Id,
-                        ImageAnalysisResults = imageAnalysisResults.ToArray(),
-                    };
+                    CameraAnalysisResult cameraResults = new CameraAnalysisResult(camera.FactoryId, camera.Id, imageAnalysisResults);
 
                     // Send message to hub for notification purposes
-                    _consoleLogger.LogDebug($"Sending message to hub for camera {camera.Id}. # of results: {cameraResults.ImageAnalysisResults.Length}");
+                    _consoleLogger.LogDebug($"Sending notification message to hub for camera {camera.Id}. # of results: {cameraResults.ImageAnalysisResults.Length}");
                     
                     // Create hub message and set its properties
                     Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(cameraResults)));
@@ -292,16 +288,16 @@ namespace ImageAnalyzer
                     /// any other tags from this module in order to mark the image appropriately.
                     /// Logic invites to think that in case the current tag is flagged, 
                     /// it will also be in the all flagged tags list.
-                    var currentTagFlagged = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
+                    var currentFlaggedTag = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
                     var allFlaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Where(y => x.TagName == y.Name && x.Probability >= y.Probability).Count() > 0);
                     
                     // Create analyze result object
                     string fileName = Path.GetFileName(filePath);
-                    if (currentTagFlagged.Count() > 0)
+                    if (currentFlaggedTag.Count() > 0)
                     {
                         string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{factoryId}/{cameraId}/{flaggedFolder}/{fileName}";
                         
-                        _consoleLogger.LogDebug($"---> Found tags in image {filePath}: {string.Join(", ", currentTagFlagged.Select(x => x.TagName))}");
+                        _consoleLogger.LogDebug($"---> Found tags in image {filePath}: {string.Join(", ", currentFlaggedTag.Select(x => x.TagName))}");
 
                         // Create message content
                         string datePattern = @"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})$";
@@ -319,7 +315,7 @@ namespace ImageAnalyzer
                         {
                             ImageUri = imageUri,
                             Timestamp = timestamp,
-                            Results = ImageAnalysisResult.Result.Results(currentTagFlagged),
+                            Results = ImageAnalysisResult.Result.Results(currentFlaggedTag, module),
                         };
 
                         // Get flat results for reporting purposes

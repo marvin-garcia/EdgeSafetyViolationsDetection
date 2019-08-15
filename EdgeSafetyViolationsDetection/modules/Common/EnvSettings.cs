@@ -50,6 +50,8 @@ namespace Common
                 public double Probability { get; set; }
                 [JsonProperty("analyzeTimeInterval")]
                 public int AnalyzeTimeInterval { get; set; }
+                [JsonProperty("notify")]
+                public bool Notify { get; set; }
             }
         }
 
