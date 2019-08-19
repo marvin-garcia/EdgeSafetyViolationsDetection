@@ -23,8 +23,8 @@ namespace Common
             public string LocalFolder { get; set; }
             [JsonProperty("outputFolder")]
             public string OutputFolder { get; set; }
-            [JsonProperty("captureTimeInterval")]
-            public int CaptureTimeInterval { get; set; }
+            // [JsonProperty("captureTimeInterval")]
+            // public int CaptureTimeInterval { get; set; }
             [JsonProperty("aiModules")]
             public AIModule[] AIModules { get; set; }
             [JsonProperty("timeZoneId")]
@@ -48,6 +48,8 @@ namespace Common
                 public string Name { get { return name.ToLower(); } set { name = value; } }
                 [JsonProperty("probability")]
                 public double Probability { get; set; }
+                [JsonProperty("captureTimeInterval")]
+                public int CaptureTimeInterval { get; set; }
                 [JsonProperty("analyzeTimeInterval")]
                 public int AnalyzeTimeInterval { get; set; }
                 [JsonProperty("notify")]

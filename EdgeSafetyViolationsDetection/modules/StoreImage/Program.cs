@@ -189,12 +189,6 @@ namespace StoreImage
         {
             try
             {
-                // Check if it is time to capture image
-                if (_counterValue % camera.CaptureTimeInterval != 0)
-                    return MessageResponse.Abandoned;
-                
-                _consoleLogger.LogTrace($"Time to capture image for camera {camera.Id}");
-
                 // Get camera credentials
                 string plainCredentials = $"{camera.Username}:{camera.Password}";
                 string svcCredentials = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes(plainCredentials));
@@ -223,6 +217,12 @@ namespace StoreImage
                 foreach (var module in camera.AIModules)
                     foreach (var tag in module.Tags)
                     {
+                        // Check if it is time to capture image for the specific tag
+                        if (_counterValue % tag.CaptureTimeInterval != 0)
+                            continue;
+                        
+                        _consoleLogger.LogTrace($"Time to capture image for camera {camera.Id} and tag {tag.Name}");
+
                         string tagFolder = Path.Combine(camera.LocalFolder, camera.FactoryId, module.Name, tag.Name);
                         if (!Directory.Exists(tagFolder))
                             Directory.CreateDirectory(tagFolder);
