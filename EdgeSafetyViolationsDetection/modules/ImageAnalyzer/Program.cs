@@ -97,7 +97,7 @@ namespace ImageAnalyzer
             }
             catch (Exception e)
             {
-                _consoleLogger.LogInformation($"WhenCancelled caught an exception: {e}");
+                _consoleLogger.LogError($"WhenCancelled caught an exception: {e}");
                 throw e;
             }
         }
@@ -120,7 +120,7 @@ namespace ImageAnalyzer
             }
             catch (Exception e)
             {
-                _consoleLogger.LogInformation($"InitializeModuleClient caught an exception: {e}");
+                _consoleLogger.LogError($"InitializeModuleClient caught an exception: {e}");
             }
         }
 
@@ -140,7 +140,7 @@ namespace ImageAnalyzer
             }
             catch (Exception e)
             {
-                _consoleLogger.LogInformation($"SetTimer caught an exception: {e}");
+                _consoleLogger.LogError($"SetTimer caught an exception: {e}");
             }
         }
 
@@ -155,7 +155,7 @@ namespace ImageAnalyzer
             }
             catch (Exception ex)
             {
-                _consoleLogger.LogInformation($"OnTimedEvent caught an exception: {ex.Message}");
+                _consoleLogger.LogError($"OnTimedEvent caught an exception: {ex.Message}");
             }
         }
 
@@ -267,95 +267,106 @@ namespace ImageAnalyzer
                 string nonFlaggedFolder = "safe";
                     
                 // Read image
+                RecognitionResults recognitionResults = null;
                 byte[] byteArray = File.ReadAllBytes(filePath);
                 using (ByteArrayContent content = new ByteArrayContent(byteArray))
                 {
                     content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                     
-                    var response = await _httpClient.PostAsync(module.ScoringEndpoint, content);
-                    if (!response.IsSuccessStatusCode)
+                    try
                     {
-                        _consoleLogger.LogError($"Failed to make POST request to module {module.ScoringEndpoint}. Response: {response.ReasonPhrase}");
-                        return null;
-                    }
-                    else
-                        _consoleLogger.LogDebug($"POST request to module {module.ScoringEndpoint} was successful");
-
-                    var contentString = await response.Content.ReadAsStringAsync();
-                    var recognitionResults = JsonConvert.DeserializeObject<RecognitionResults>(contentString);
-
-                    /// Need to differentiate between the current tag being flagged and 
-                    /// any other tags from this module in order to mark the image appropriately.
-                    /// Logic invites to think that in case the current tag is flagged, 
-                    /// it will also be in the all flagged tags list.
-                    var currentFlaggedTag = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
-                    var allFlaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Where(y => x.TagName == y.Name && x.Probability >= y.Probability).Count() > 0);
-                    
-                    // Create analyze result object
-                    string fileName = Path.GetFileName(filePath);
-                    if (currentFlaggedTag.Count() > 0)
-                    {
-                        string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{factoryId}/{cameraId}/{flaggedFolder}/{fileName}";
-                        
-                        _consoleLogger.LogDebug($"---> Found tags in image {filePath}: {string.Join(", ", currentFlaggedTag.Select(x => x.TagName))}");
-
-                        // Create message content
-                        string datePattern = @"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})$";
-                        var match = Regex.Match(Path.GetFileNameWithoutExtension(fileName), datePattern);
-                        DateTime timestamp = new DateTime(
-                            Convert.ToInt32(match.Groups[1].Value),
-                            Convert.ToInt32(match.Groups[2].Value),
-                            Convert.ToInt32(match.Groups[3].Value),
-                            Convert.ToInt32(match.Groups[4].Value),
-                            Convert.ToInt32(match.Groups[5].Value),
-                            Convert.ToInt32(match.Groups[6].Value),
-                            Convert.ToInt32(match.Groups[7].Value));
-                        
-                        analyzeResult = new ImageAnalysisResult()
+                        var response = await _httpClient.PostAsync(module.ScoringEndpoint, content);
+                        if (!response.IsSuccessStatusCode)
                         {
-                            ImageUri = imageUri,
-                            Timestamp = timestamp,
-                            Results = ImageAnalysisResult.Result.Results(currentFlaggedTag, module),
-                        };
-
-                        // Get flat results for reporting purposes
-                        FlatImageAnalysisResult[] flatImageResults = FlatImageAnalysisResult.Convert(factoryId, cameraId, analyzeResult);
-                        foreach (var flatResult in flatImageResults)
+                            _consoleLogger.LogError($"Failed to make POST request to module {module.ScoringEndpoint}. Response: {response.ReasonPhrase}");
+                            return null;
+                        }
+                        else
                         {
-                            // Create hub message and set its properties
-                            var message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(flatResult)));
-                            message.Properties.Add("messageType", "reporting");
-
-                            // Send reporting message
-                            await SendMessageToHub(message);
-
-                            // Log it
-                            _consoleLogger.LogDebug($"Sent reporting message for camera {cameraId}");
+                            _consoleLogger.LogDebug($"POST request to module {module.ScoringEndpoint} was successful");
+                            
+                            var contentString = await response.Content.ReadAsStringAsync();
+                            recognitionResults = JsonConvert.DeserializeObject<RecognitionResults>(contentString);
                         }
                     }
-                    else
-                        _consoleLogger.LogDebug($"No tags were found in image {filePath}");
-
-                    // Save image to output directory
-                    string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
-                    
-                    // Set output directory
-                    string outputDirectory = Path.Combine(outputFolder, factoryId, cameraId, destinationFolder);
-                    if (!Directory.Exists(outputDirectory))
-                        Directory.CreateDirectory(outputDirectory);
-
-                    // Save image
-                    string imageOutputPath = Path.Combine(outputDirectory, fileName);
-                    File.WriteAllBytes(imageOutputPath, byteArray);
-                    _consoleLogger.LogDebug($"Moving image to final destination folder {imageOutputPath}");
-
-                    // Save payload
-                    string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));
-                    File.WriteAllText(fileOutputPath, JsonConvert.SerializeObject(recognitionResults.Predictions));
-
-                    // Delete image from local folder
-                    File.Delete(filePath);
+                    catch (Exception e)
+                    {
+                        _consoleLogger.LogError($"AnalyzeImage:PostAsync failed to make POST request to module {module.ScoringEndpoint}. Exception: {e}");
+                        return null;
+                    }
                 }
+
+                /// Need to differentiate between the current tag being flagged and 
+                /// any other tags from this module in order to mark the image appropriately.
+                /// Logic invites to think that in case the current tag is flagged, 
+                /// it will also be in the all flagged tags list.
+                var currentFlaggedTag = recognitionResults.Predictions.Where(x => x.TagName == tag.Name && x.Probability >= tag.Probability);
+                var allFlaggedTags = recognitionResults.Predictions.Where(x => module.Tags.Where(y => x.TagName == y.Name && x.Probability >= y.Probability).Count() > 0);
+                
+                // Create analyze result object
+                string fileName = Path.GetFileName(filePath);
+                if (currentFlaggedTag.Count() > 0)
+                {
+                    string imageUri = $"https://{storageAccountName}.blob.core.windows.net/{dbeShareContainerName}/{factoryId}/{cameraId}/{flaggedFolder}/{fileName}";
+                    
+                    _consoleLogger.LogInformation($"---> Found tags in image {filePath}: {string.Join(", ", currentFlaggedTag.Select(x => x.TagName))}");
+
+                    // Create message content
+                    string datePattern = @"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})$";
+                    var match = Regex.Match(Path.GetFileNameWithoutExtension(fileName), datePattern);
+                    DateTime timestamp = new DateTime(
+                        Convert.ToInt32(match.Groups[1].Value),
+                        Convert.ToInt32(match.Groups[2].Value),
+                        Convert.ToInt32(match.Groups[3].Value),
+                        Convert.ToInt32(match.Groups[4].Value),
+                        Convert.ToInt32(match.Groups[5].Value),
+                        Convert.ToInt32(match.Groups[6].Value),
+                        Convert.ToInt32(match.Groups[7].Value));
+                    
+                    analyzeResult = new ImageAnalysisResult()
+                    {
+                        ImageUri = imageUri,
+                        Timestamp = timestamp,
+                        Results = ImageAnalysisResult.Result.Results(currentFlaggedTag, module),
+                    };
+
+                    // Get flat results for reporting purposes
+                    FlatImageAnalysisResult[] flatImageResults = FlatImageAnalysisResult.Convert(factoryId, cameraId, analyzeResult);
+                    foreach (var flatResult in flatImageResults)
+                    {
+                        // Create hub message and set its properties
+                        var message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(flatResult)));
+                        message.Properties.Add("messageType", "reporting");
+
+                        // Send reporting message
+                        await SendMessageToHub(message);
+
+                        // Log it
+                        _consoleLogger.LogDebug($"Sent reporting message for camera {cameraId}");
+                    }
+                }
+                else
+                    _consoleLogger.LogDebug($"No tags were found in image {filePath}");
+
+                // Save image to output directory
+                string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
+                
+                // Set output directory
+                string outputDirectory = Path.Combine(outputFolder, factoryId, cameraId, destinationFolder);
+                if (!Directory.Exists(outputDirectory))
+                    Directory.CreateDirectory(outputDirectory);
+
+                // Save image
+                string imageOutputPath = Path.Combine(outputDirectory, fileName);
+                File.WriteAllBytes(imageOutputPath, byteArray);
+                _consoleLogger.LogDebug($"Moving image to final destination folder {imageOutputPath}");
+
+                // Save payload
+                string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));
+                File.WriteAllText(fileOutputPath, JsonConvert.SerializeObject(recognitionResults.Predictions));
+
+                // Delete image from local folder
+                File.Delete(filePath);
 
                 return analyzeResult;
             }
