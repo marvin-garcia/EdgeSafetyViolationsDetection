@@ -170,7 +170,7 @@ namespace ImageAnalyzer
             
             try
             {
-                _consoleLogger.LogDebug($"Received kick to analyze images. Counter: {_counterValue}");
+                _consoleLogger.LogTrace($"Received kick to analyze images. Counter: {_counterValue}");
 
                 Task<MessageResponse>[] tasks = new Task<MessageResponse>[_envSettings.CameraDevices.Length];
                 for (int i = 0; i < _envSettings.CameraDevices.Length; i++)
@@ -183,7 +183,7 @@ namespace ImageAnalyzer
                 _consoleLogger.LogCritical("AnalyzeImage caught an exception: {0}", e);
             }
 
-            _consoleLogger.LogDebug($"Processed event.");
+            _consoleLogger.LogTrace($"Processed event.");
         }
 
         static async Task<MessageResponse> AnalyzeImage(EnvSettings.CameraDevice camera)
@@ -233,7 +233,7 @@ namespace ImageAnalyzer
                     CameraAnalysisResult cameraResults = new CameraAnalysisResult(camera.FactoryId, camera.Id, imageAnalysisResults);
 
                     // Send message to hub for notification purposes
-                    _consoleLogger.LogDebug($"Sending notification message to hub for camera {camera.Id}. # of results: {cameraResults.ImageAnalysisResults.Length}");
+                    _consoleLogger.LogTrace($"Sending notification message to hub for camera {camera.Id}. # of results: {cameraResults.ImageAnalysisResults.Length}");
                     
                     // Create hub message and set its properties
                     Message message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(cameraResults)));
@@ -243,7 +243,7 @@ namespace ImageAnalyzer
                     await SendMessageToHub(message);
 
                     // Log it
-                    _consoleLogger.LogDebug($"Sent notification message for camera {camera.Id}");
+                    _consoleLogger.LogTrace($"Sent notification message for camera {camera.Id}");
                 }
             }
             catch (Exception e)
@@ -342,11 +342,11 @@ namespace ImageAnalyzer
                         await SendMessageToHub(message);
 
                         // Log it
-                        _consoleLogger.LogDebug($"Sent reporting message for camera {cameraId}");
+                        _consoleLogger.LogTrace($"Sent reporting message for camera {cameraId}");
                     }
                 }
                 else
-                    _consoleLogger.LogDebug($"No tags were found in image {filePath}");
+                    _consoleLogger.LogTrace($"No tags were found in image {filePath}");
 
                 // Save image to output directory
                 string destinationFolder = allFlaggedTags.Count() > 0 ? flaggedFolder : nonFlaggedFolder;
@@ -359,7 +359,7 @@ namespace ImageAnalyzer
                 // Save image
                 string imageOutputPath = Path.Combine(outputDirectory, fileName);
                 File.WriteAllBytes(imageOutputPath, byteArray);
-                _consoleLogger.LogDebug($"Moving image to final destination folder {imageOutputPath}");
+                _consoleLogger.LogTrace($"Moving image to final destination folder {imageOutputPath}");
 
                 // Save payload
                 string fileOutputPath = Path.Combine(outputDirectory, Path.ChangeExtension(fileName, "json"));
