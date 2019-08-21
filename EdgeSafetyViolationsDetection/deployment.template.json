@@ -106,6 +106,16 @@
               "image": "${MODULES.Assy2PersonNoGlasses}",
               "createOptions": {}
             }
+          },
+          "Press2PersonWithPhone": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.Press2PersonWithPhone}",
+              "createOptions": {}
+            }
           }
         }
       }
@@ -118,7 +128,8 @@
           "Press2ObjectDetectionToIoTHub": "FROM /messages/modules/Press2ObjectDetection/outputs/* INTO $upstream",
           "Assy2ObjectDetectionToIoTHub": "FROM /messages/modules/Assy2ObjectDetection/outputs/* INTO $upstream",
           "StoreImageToIoTHub": "FROM /messages/modules/StoreImage/outputs/* INTO $upstream",
-          "Assy2PersonNoGlassesToIoTHub": "FROM /messages/modules/Assy2PersonNoGlasses/outputs/* INTO $upstream"
+          "Assy2PersonNoGlassesToIoTHub": "FROM /messages/modules/Assy2PersonNoGlasses/outputs/* INTO $upstream",
+          "Press2PersonWithPhoneToIoTHub": "FROM /messages/modules/Press2PersonWithPhone/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
           "timeToLiveSecs": 7200
